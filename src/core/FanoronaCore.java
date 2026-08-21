@@ -73,7 +73,43 @@ public class FanoronaCore {
         // 4. Validar se o destino é adjacente à origem
         // 5. IMPORTANTE: Validar se o movimento diagonal é permitido naquele cruzamento específico
 
-        return true; // placeholder
+        // 1. Validar se as posições estão dentro dos limites do tabuleiro
+        if (origem.linha() < 0 || origem.linha() >= LINHAS || origem.coluna() < 0 || origem.coluna() >= COLUNAS ||
+                destino.linha() < 0 || destino.linha() >= LINHAS || destino.coluna() < 0 || destino.coluna() >= COLUNAS) {
+            return false; // Fora do tabuleiro
+        }
+
+        // 2. Validar se a peça na origem pertence ao jogador atual
+        if (tabuleiro[origem.linha()][origem.coluna()] != turnoAtual) {
+            return false; // Tentando mover peça do adversário ou casa vazia
+        }
+
+        // 3. Validar se a casa de destino está vazia
+        if (tabuleiro[destino.linha()][destino.coluna()] != Peca.VAZIA) {
+            return false; // Destino ocupado
+        }
+
+        // 4. Validar se o destino é adjacente (distância máxima de 1 casa)
+        int difLinha = Math.abs(origem.linha() - destino.linha());
+        int difColuna = Math.abs(origem.coluna() - destino.coluna());
+
+        if (difLinha > 1 || difColuna > 1 || (difLinha == 0 && difColuna == 0)) {
+            return false; // Destino muito longe ou é a mesma casa da origem
+        }
+
+        // 5. Validar a regra das diagonais (cruzamentos fortes e fracos)
+        boolean isMovimentoDiagonal = (difLinha == 1 && difColuna == 1);
+
+        if (isMovimentoDiagonal) {
+            // Se tentou mover na diagonal, a origem PRECISA ser um cruzamento forte (soma par)
+            boolean isCruzamentoForte = (origem.linha() + origem.coluna()) % 2 == 0;
+            if (!isCruzamentoForte) {
+                return false; // Tentou andar na diagonal a partir de um ponto sem linha diagonal
+            }
+        }
+
+        // Se passou por todas as barreiras, o movimento básico é válido!
+        return true;
     }
 
     private boolean executarCaptura(Posicao origem, Posicao destino) {
