@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="ui.FanoronaController"
+            prefWidth="800" prefHeight="600">
+
+    <!-- Área Central: O Tabuleiro do Jogo -->
+    <center>
+        <VBox alignment="CENTER" spacing="20">
+            <Label text="Fanorona" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+
+            <!-- O GridPane onde as 45 casas serão desenhadas pelo Java -->
+            <GridPane fx:id="tabuleiroGrid" alignment="CENTER"
+                      style="-fx-background-color: #e0c9a3; -fx-padding: 20; -fx-border-color: #8b5a2b; -fx-border-width: 5;">
+                <!-- As peças serão inseridas dinamicamente via Controlador -->
+            </GridPane>
+        </VBox>
+    </center>
+
+    <!-- Área Lateral: Chat e Controles da Rede -->
+    <right>
+        <VBox spacing="10" prefWidth="250" style="-fx-background-color: #f4f4f4; -fx-padding: 15; -fx-border-color: #cccccc; -fx-border-width: 0 0 0 1;">
+
+            <Label text="Comunicação" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+
+            <!-- Caixa de texto do chat (expande para preencher o espaço) -->
+            <TextArea fx:id="chatArea" editable="false" wrapText="true" VBox.vgrow="ALWAYS"/>
+
+            <!-- Input de texto e botão de enviar -->
+            <HBox spacing="5">
+                <TextField fx:id="inputChat" promptText="Digite aqui..." HBox.hgrow="ALWAYS" onAction="#enviarChat"/>
+                <Button text="Enviar" onAction="#enviarChat"/>
+            </HBox>
+
+            <Separator style="-fx-padding: 10 0;"/>
+
+            <!-- Botões de Ação do Jogo -->
+            <Button text="Passar Turno" maxWidth="Infinity" style="-fx-font-weight: bold;"/>
+            <Button text="Desistir da Partida" maxWidth="Infinity" style="-fx-background-color: #d9534f; -fx-text-fill: white; -fx-font-weight: bold;"/>
+
+        </VBox>
+    </right>
+
+</BorderPane>

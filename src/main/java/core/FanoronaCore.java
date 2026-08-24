@@ -1,10 +1,18 @@
 package core;
 
+import java.util.ArrayList;
+
 public class FanoronaCore {
     private final Peca[][] tabuleiro;
     private Peca turnoAtual;
     private final int LINHAS = 5;
     private final int COLUNAS = 9;
+    // Variáveis para gerenciar múltiplas capturas no mesmo turno
+    private boolean emSequencia = false;
+    private Posicao pecaAtiva = null;
+    private int ultimoDl = 0;
+    private int ultimoDc = 0;
+    private final ArrayList<Posicao> caminhoDoTurno = new ArrayList<>();
 
     public FanoronaCore() {
         tabuleiro = new Peca[LINHAS][COLUNAS];
@@ -47,23 +55,47 @@ public class FanoronaCore {
      * Tenta executar um movimento e retorna se foi bem sucedido.
      */
     public boolean tentarMovimento(Posicao origem, Posicao destino) {
+        int dl = destino.linha() - origem.linha();
+        int dc = destino.coluna() - origem.coluna();
+
+        // 1. Regras restritivas se estiver no meio de uma sequência de capturas
+        if (emSequencia) {
+            if (!origem.equals(pecaAtiva)) return false; // Deve usar a mesma peça
+            if (dl == ultimoDl && dc == ultimoDc) return false; // Deve mudar de direção
+            if (caminhoDoTurno.contains(destino)) return false; // Não pode cruzar o próprio caminho
+        }
+
+        // 2. Validações básicas de tabuleiro (limites, adjacência, etc.)
         if (!movimentoBasicoValido(origem, destino)) {
             return false;
         }
 
+        // 3. Executa a lógica de captura (já remove as peças inimigas se houver)
         boolean capturou = executarCaptura(origem, destino);
 
-        // No Fanorona, se você não captura nada, o movimento é simples e o turno acaba.
-        // Se capturou, precisaremos gerenciar a possibilidade de múltiplas capturas (sequência).
-
-        moverPeca(origem, destino);
-
-        // Lógica simplificada de troca de turno (precisará de ajuste para múltiplas capturas)
-        if (!capturou) {
-            alternarTurno();
+        // 4. Validação final da sequência: movimentos encadeados OBRIGAM uma captura
+        if (emSequencia && !capturou) {
+            return false; // Movimento inválido, o tabuleiro não é alterado pois a peça não se moveu
         }
 
-        return true;
+        // 5. Efetiva o movimento no tabuleiro
+        moverPeca(origem, destino);
+
+        // 6. Atualiza o estado do jogo
+        if (capturou) {
+            emSequencia = true;
+            pecaAtiva = destino;
+            ultimoDl = dl;
+            ultimoDc = dc;
+            caminhoDoTurno.add(origem); // Registra a casa visitada
+
+            // Retorna true, mas NÃO alterna o turno ainda.
+            return true;
+        } else {
+            // Movimento simples (só ocorre se não estava em sequência)
+            finalizarTurno();
+            return true;
+        }
     }
 
     private boolean movimentoBasicoValido(Posicao origem, Posicao destino) {
@@ -119,7 +151,16 @@ public class FanoronaCore {
         // Verificar Captura por AFASTAMENTO: olhar a casa anterior na direção oposta à origem
 
         // Retorna true se removeu alguma peça adversária do tabuleiro
-        return false; // placeholder
+
+        // Tenta primeiro a captura por aproximação
+        boolean capturou = capturarPorAproximacao(origem, destino);
+
+        // Se não capturou por aproximação, tenta por afastamento
+        if (!capturou) {
+            capturou = capturarPorAfastamento(origem, destino);
+        }
+
+        return capturou;
     }
 
     private void moverPeca(Posicao origem, Posicao destino) {
@@ -131,6 +172,82 @@ public class FanoronaCore {
         turnoAtual = (turnoAtual == Peca.BRANCA) ? Peca.PRETA : Peca.BRANCA;
     }
 
+    private boolean capturarPorAproximacao(Posicao origem, Posicao destino) {
+        //dl = deslocamento na linha, dc = deslocamento na coluna
+        // 1. Descobrir o vetor de direção (ex: se andou para a direita, dl = 0, dc = 1)
+        int dl = destino.linha() - origem.linha();
+        int dc = destino.coluna() - origem.coluna();
+
+        Peca adversario = (turnoAtual == Peca.BRANCA) ? Peca.PRETA : Peca.BRANCA;
+        boolean capturouAlgo = false;
+
+        // 2. Olhar para a casa imediatamente à frente do destino, mantendo a direção
+        int linhaAlvo = destino.linha() + dl;
+        int colunaAlvo = destino.coluna() + dc;
+
+        // 3. Enquanto estiver dentro dos limites do tabuleiro E a casa contiver um inimigo...
+        while (linhaAlvo >= 0 && linhaAlvo < LINHAS &&
+                colunaAlvo >= 0 && colunaAlvo < COLUNAS &&
+                tabuleiro[linhaAlvo][colunaAlvo] == adversario) {
+
+            // Captura a peça inimiga
+            tabuleiro[linhaAlvo][colunaAlvo] = Peca.VAZIA;
+            capturouAlgo = true;
+
+            // Avança para a próxima casa na mesma direção para continuar a captura em sequência
+            linhaAlvo += dl;
+            colunaAlvo += dc;
+        }
+
+        return capturouAlgo;
+    }
+
+    private boolean capturarPorAfastamento(Posicao origem, Posicao destino) {
+        // 1. Descobrir o vetor de direção do movimento
+        int dl = destino.linha() - origem.linha();
+        int dc = destino.coluna() - origem.coluna();
+
+        Peca adversario = (turnoAtual == Peca.BRANCA) ? Peca.PRETA : Peca.BRANCA;
+        boolean capturouAlgo = false;
+
+        // 2. Olhar para a casa imediatamente ATRÁS da origem
+        // Subtraímos o vetor (dl, dc) em vez de somar
+        int linhaAlvo = origem.linha() - dl;
+        int colunaAlvo = origem.coluna() - dc;
+
+        // 3. Varrer a linha capturando as peças inimigas ininterruptas
+        while (linhaAlvo >= 0 && linhaAlvo < LINHAS &&
+                colunaAlvo >= 0 && colunaAlvo < COLUNAS &&
+                tabuleiro[linhaAlvo][colunaAlvo] == adversario) {
+
+            // Captura a peça inimiga
+            tabuleiro[linhaAlvo][colunaAlvo] = Peca.VAZIA;
+            capturouAlgo = true;
+
+            // Continua recuando na mesma direção oposta
+            linhaAlvo -= dl;
+            colunaAlvo -= dc;
+        }
+
+        return capturouAlgo;
+    }
+
+    /**
+     * Chamado quando o jogador decide encerrar suas capturas em sequência,
+     * ou automaticamente após um movimento simples.
+     */
+    public void finalizarTurno() {
+        alternarTurno();
+        emSequencia = false;
+        pecaAtiva = null;
+        caminhoDoTurno.clear();
+        ultimoDl = 0;
+        ultimoDc = 0;
+    }
+
+    public Peca getPeca(int linha, int coluna) {
+        return tabuleiro[linha][coluna];
+    }
     //metodo para testar funcionamento da logica enquanto não temos UI
     public void imprimirTabuleiro() {
         System.out.println("  0 1 2 3 4 5 6 7 8 (Colunas)");
