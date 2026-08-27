@@ -232,10 +232,6 @@ public class FanoronaCore {
         return capturouAlgo;
     }
 
-    /**
-     * Chamado quando o jogador decide encerrar suas capturas em sequência,
-     * ou automaticamente após um movimento simples.
-     */
     public void finalizarTurno() {
         alternarTurno();
         emSequencia = false;
@@ -247,6 +243,79 @@ public class FanoronaCore {
 
     public Peca getPeca(int linha, int coluna) {
         return tabuleiro[linha][coluna];
+    }
+
+    public boolean isJogadaValida(Posicao origem, Posicao destino) {
+        // Validação básica primária
+        if (!movimentoBasicoValido(origem, destino)) {
+            return false;
+        }
+
+        // Se estiver no meio de uma sequência, a interface precisa respeitar as travas
+        if (emSequencia) {
+            int dl = destino.linha() - origem.linha();
+            int dc = destino.coluna() - origem.coluna();
+
+            if (!origem.equals(pecaAtiva)) return false; // Trava visual para outras peças
+            if (dl == ultimoDl && dc == ultimoDc) return false; // Trava de direção
+            if (caminhoDoTurno.contains(destino)) return false; // Trava de caminho
+
+            // NOVA TRAVA: O movimento encadeado DEVE obrigatoriamente ser uma captura
+            if (!isCapturaPossivel(origem, destino)) return false;
+        }
+
+        return true;
+    }
+
+    public Peca getTurnoAtual() {
+        return turnoAtual;
+    }
+
+    private boolean isCapturaPossivel(Posicao origem, Posicao destino) {
+        int dl = destino.linha() - origem.linha();
+        int dc = destino.coluna() - origem.coluna();
+        Peca adversario = (turnoAtual == Peca.BRANCA) ? Peca.PRETA : Peca.BRANCA;
+
+        // Verifica captura por aproximação (olha para a frente do destino)
+        int linhaAprox = destino.linha() + dl;
+        int colunaAprox = destino.coluna() + dc;
+        if (linhaAprox >= 0 && linhaAprox < LINHAS && colunaAprox >= 0 && colunaAprox < COLUNAS) {
+            if (tabuleiro[linhaAprox][colunaAprox] == adversario) {
+                return true;
+            }
+        }
+
+        // Verifica captura por afastamento (olha para trás da origem)
+        int linhaAfast = origem.linha() - dl;
+        int colunaAfast = origem.coluna() - dc;
+        if (linhaAfast >= 0 && linhaAfast < LINHAS && colunaAfast >= 0 && colunaAfast < COLUNAS) {
+            if (tabuleiro[linhaAfast][colunaAfast] == adversario) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Verifica se algum jogador ficou sem peças.
+     * Retorna a peça vencedora ou null se o jogo ainda estiver em andamento.
+     */
+    public Peca verificarVencedor() {
+        int contagemBrancas = 0;
+        int contagemPretas = 0;
+
+        for (int linha = 0; linha < LINHAS; linha++) {
+            for (int coluna = 0; coluna < COLUNAS; coluna++) {
+                if (tabuleiro[linha][coluna] == Peca.BRANCA) contagemBrancas++;
+                else if (tabuleiro[linha][coluna] == Peca.PRETA) contagemPretas++;
+            }
+        }
+
+        if (contagemBrancas == 0) return Peca.PRETA; // Brancas acabaram, Pretas vencem
+        if (contagemPretas == 0) return Peca.BRANCA; // Pretas acabaram, Brancas vencem
+
+        return null; // Ninguém venceu ainda
     }
     //metodo para testar funcionamento da logica enquanto não temos UI
     public void imprimirTabuleiro() {

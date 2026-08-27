@@ -40,7 +40,7 @@
             <Separator style="-fx-padding: 10 0;"/>
 
             <!-- Botões de Ação do Jogo -->
-            <Button text="Passar Turno" maxWidth="Infinity" style="-fx-font-weight: bold;"/>
+            <Button text="Passar Turno" onAction="#passarTurno" maxWidth="Infinity" style="-fx-font-weight: bold;"/>
             <Button text="Desistir da Partida" maxWidth="Infinity" style="-fx-background-color: #d9534f; -fx-text-fill: white; -fx-font-weight: bold;"/>
 
         </VBox>
