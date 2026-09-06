@@ -3,9 +3,11 @@ package ui;
 import core.FanoronaCore;
 import core.Peca;
 import core.Posicao;
+import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import network.FanoronaClient;
 import network.FanoronaServer;
 import network.Mensagem;
 import javafx.application.Platform;
@@ -20,12 +22,16 @@ public class FanoronaController {
     @FXML private GridPane tabuleiroGrid;
     @FXML private TextArea chatArea;
     @FXML private TextField inputChat;
+    @FXML private Label statusTurno;
+
 
     // --- Lógica e Rede ---
     private FanoronaCore jogo;
-    private FanoronaServer servidor; // Poderia ser o FanoronaClient dependendo da tela
+    private FanoronaServer servidor = null;
+    private FanoronaClient cliente = null; // Poderia ser o FanoronaClient dependendo da tela
     private Posicao pecaSelecionada = null;
     private boolean jogoFinalizado = false;
+    private Peca minhaCor;
 
     /**
      * O método initialize() é chamado automaticamente pelo JavaFX
@@ -35,33 +41,76 @@ public class FanoronaController {
     public void initialize() {
         jogo = new FanoronaCore();
         desenharTabuleiroNaTela();
-        iniciarRede();
     }
 
-    private void iniciarRede() {
-        // Inicializa o servidor e define o que fazer ao receber mensagens
-        servidor = new FanoronaServer(5000, textoRecebido -> {
-            Mensagem msg = Mensagem.decodificar(textoRecebido);
+//    private void iniciarRede() {
+//        // Inicializa o servidor e define o que fazer ao receber mensagens
+//        servidor = new FanoronaServer(5000, textoRecebido -> {
+//            Mensagem msg = Mensagem.decodificar(textoRecebido);
+//
+//            // REGRA DE OURO DO JAVAFX:
+//            // Como a rede roda em uma Thread separada em background, ela NÃO PODE
+//            // alterar a interface gráfica diretamente. Precisamos usar o Platform.runLater()
+//            // para jogar a atualização de volta para a Thread principal da UI.
+//            Platform.runLater(() -> processarMensagemDaRede(msg));
+//        });
+//
+//        new Thread(servidor).start();
+//    }
 
-            // REGRA DE OURO DO JAVAFX:
-            // Como a rede roda em uma Thread separada em background, ela NÃO PODE
-            // alterar a interface gráfica diretamente. Precisamos usar o Platform.runLater()
-            // para jogar a atualização de volta para a Thread principal da UI.
-            Platform.runLater(() -> processarMensagemDaRede(msg));
-        });
+    public void iniciarConexao(boolean isServidor, String ipServidor) {
+        if (isServidor) {
+            minhaCor = Peca.BRANCA; // Servidor joga com as brancas
+            servidor = new FanoronaServer(5000, textoRecebido -> {
+                Mensagem msg = Mensagem.decodificar(textoRecebido);
+                Platform.runLater(() -> processarMensagemDaRede(msg));
+            });
+            new Thread(servidor).start();
+        } else {
+            minhaCor = Peca.PRETA; // Cliente joga com as pretas
+            cliente = new FanoronaClient(ipServidor, 5000, textoRecebido -> {
+                Mensagem msg = Mensagem.decodificar(textoRecebido);
+                Platform.runLater(() -> processarMensagemDaRede(msg));
+            });
+            new Thread(cliente).start();
+        }
+        atualizarStatusTurno();
+    }
 
-        new Thread(servidor).start();
+    // Método auxiliar para não duplicar código de envio
+    private void enviarPacoteRede(String pacoteJson) {
+        if (servidor != null) servidor.enviarMensagem(pacoteJson);
+        if (cliente != null) cliente.enviarMensagem(pacoteJson);
     }
 
     private void processarMensagemDaRede(Mensagem msg) {
         switch (msg.comando()) {
             case "MOVE" -> {
-                // Aqui você extrairia as coordenadas do msg.payload()
-                // Chamaria jogo.tentarMovimento(origem, destino)
+                String[] coords = msg.payload().split(",");
+                Posicao origem = new Posicao(Integer.parseInt(coords[0]), Integer.parseInt(coords[1]));
+                Posicao destino = new Posicao(Integer.parseInt(coords[2]), Integer.parseInt(coords[3]));
+
+                // Força o movimento no tabuleiro local
+                jogo.tentarMovimento(origem, destino);
                 atualizarTabuleiroNaTela();
+
+                // Verifica se o adversário venceu com esse movimento
+                Peca vencedor = jogo.verificarVencedor();
+                if (vencedor != null) {
+                    anunciarVencedor(vencedor);
+                }
+                atualizarStatusTurno();
+            }
+            case "PASS" -> {
+                jogo.finalizarTurno();
+                atualizarTabuleiroNaTela();
+                atualizarStatusTurno();
             }
             case "CHAT" -> {
                 chatArea.appendText("Adversário: " + msg.payload() + "\n");
+            }
+            case "FORFEIT"  -> {
+                anunciarDesistencia(minhaCor, false);
             }
         }
     }
@@ -75,20 +124,54 @@ public class FanoronaController {
         if (!texto.isBlank()) {
             chatArea.appendText("Você: " + texto + "\n");
             Mensagem msg = new Mensagem("CHAT", texto);
-            servidor.enviarMensagem(msg.codificar());
+            enviarPacoteRede(msg.codificar());
             inputChat.clear();
         }
     }
 
     @FXML
+    public void desistirPartida() {
+        if (jogoFinalizado) return;
+
+        // Avisa a rede sobre a desistência
+        enviarPacoteRede(new Mensagem("FORFEIT", "").codificar());
+
+        // Determina que o vencedor é a cor oposta à sua
+        Peca vencedor = (minhaCor == Peca.BRANCA) ? Peca.PRETA : Peca.BRANCA;
+        anunciarDesistencia(vencedor, true);
+    }
+
+    @FXML
     public void passarTurno() {
         if (jogoFinalizado) return;
+        if (jogo.getTurnoAtual() != minhaCor) {
+            System.out.println("Ação bloqueada: Não é o seu turno.");
+            return;
+        }
         jogo.finalizarTurno();
         pecaSelecionada = null; // Limpa qualquer brilho preso na tela
         atualizarTabuleiroNaTela();
         System.out.println("Turno encerrado. Agora jogam as: " + jogo.getTurnoAtual());
 
-        // Futuramente: servidor.enviarMensagem(new Mensagem("PASS", "").codificar());
+        // Avisa a rede que o turno acabou
+        enviarPacoteRede(new Mensagem("PASS", "").codificar());
+        atualizarStatusTurno();
+    }
+
+    private void atualizarStatusTurno() {
+        if (jogoFinalizado) {
+            statusTurno.setText("Partida Encerrada");
+            statusTurno.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #7f8c8d;"); // Cinza
+            return;
+        }
+
+        if (jogo.getTurnoAtual() == minhaCor) {
+            statusTurno.setText("É a sua vez!");
+            statusTurno.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #27ae60;"); // Verde
+        } else {
+            statusTurno.setText("Turno do adversário...");
+            statusTurno.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #e74c3c;"); // Vermelho
+        }
     }
 
     private void desenharTabuleiroNaTela() {
@@ -175,7 +258,9 @@ public class FanoronaController {
         if (pecaSelecionada == null) {
             // PRIMEIRO CLIQUE: Seleciona a peça (se não for uma casa vazia)
             Peca pecaClicada = jogo.getPeca(linha, coluna);
-            if (pecaClicada != Peca.VAZIA && pecaClicada == jogo.getTurnoAtual()) {
+            if (pecaClicada != Peca.VAZIA &&
+                pecaClicada == jogo.getTurnoAtual() &&
+                pecaClicada == minhaCor) {
                 pecaSelecionada = clicada;
             }
         } else {
@@ -189,7 +274,12 @@ public class FanoronaController {
 
                 if (sucesso) {
                     System.out.println("Movimento executado!");
-                    // Futuramente, é aqui que enviaremos a jogada pela rede
+                    // Monta o pacote com as coordenadas: "linhaOrigem,colunaOrigem,linhaDestino,colunaDestino"
+                    String payload = pecaSelecionada.linha() + "," + pecaSelecionada.coluna() + "," +
+                            clicada.linha() + "," + clicada.coluna();
+
+                    enviarPacoteRede(new Mensagem("MOVE", payload).codificar());
+
                     Peca vencedor = jogo.verificarVencedor();
                     if (vencedor != null) {
                         anunciarVencedor(vencedor);
@@ -204,6 +294,7 @@ public class FanoronaController {
         }
         // Redesenha o tabuleiro para mostrar/esconder o brilho e os destinos ou atualizar as peças
         atualizarTabuleiroNaTela();
+        atualizarStatusTurno();
     }
 
     private void anunciarVencedor(Peca vencedor) {
@@ -215,6 +306,25 @@ public class FanoronaController {
         alerta.setTitle("Fim de Jogo!");
         alerta.setHeaderText("Temos um vencedor!");
         alerta.setContentText("A equipe das peças " + nomeVencedor + " capturou todas as peças adversárias e venceu a partida!");
+
+        alerta.showAndWait();
+    }
+
+    private void anunciarDesistencia(Peca vencedor, boolean fuiEuQuemDesistiu) {
+        jogoFinalizado = true;
+
+        // Atualiza a label superior
+        statusTurno.setText("Partida Encerrada");
+        statusTurno.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #7f8c8d;"); // Cinza
+
+        String mensagem = fuiEuQuemDesistiu ?
+                "Você desistiu da partida. O adversário venceu!" :
+                "O adversário abandonou o jogo. Você venceu por desistência!";
+
+        javafx.scene.control.Alert alerta = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+        alerta.setTitle("Fim de Jogo!");
+        alerta.setHeaderText(fuiEuQuemDesistiu ? "Derrota" : "Vitória!");
+        alerta.setContentText(mensagem);
 
         alerta.showAndWait();
     }

@@ -4,44 +4,52 @@
 <?import javafx.scene.control.*?>
 <?import javafx.geometry.Insets?>
 
+<!-- Adicionado padding de 20px em toda a janela e fundo cinza claro -->
 <BorderPane xmlns="http://javafx.com/javafx/17"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="ui.FanoronaController"
-            prefWidth="800" prefHeight="600">
+            style="-fx-padding: 20; -fx-background-color: #f4f6f8;">
 
     <!-- Área Central: O Tabuleiro do Jogo -->
     <center>
-        <VBox alignment="CENTER" spacing="20">
-            <Label text="Fanorona" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+        <VBox alignment="CENTER" spacing="15">
+            <!-- Margem para descolar o tabuleiro da barra lateral do chat -->
+            <BorderPane.margin>
+                <Insets right="25"/>
+            </BorderPane.margin>
 
-            <!-- O GridPane onde as 45 casas serão desenhadas pelo Java -->
+            <Label text="Fanorona" style="-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+
+            <!-- NOVA LABEL: Indicador visual de turno -->
+            <Label fx:id="statusTurno" text="Aguardando..." style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-padding: 0 0 10 0;"/>
+
+            <!-- Tabuleiro com efeito de sombra (dropshadow) -->
             <GridPane fx:id="tabuleiroGrid" alignment="CENTER"
-                      style="-fx-background-color: #e0c9a3; -fx-padding: 20; -fx-border-color: #8b5a2b; -fx-border-width: 5;">
-                <!-- As peças serão inseridas dinamicamente via Controlador -->
+                      style="-fx-background-color: #e0c9a3; -fx-padding: 20; -fx-border-color: #8b5a2b; -fx-border-width: 5; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 15, 0, 0, 8);">
+                <!-- As peças serão inseridas dinamicamente -->
             </GridPane>
         </VBox>
     </center>
 
     <!-- Área Lateral: Chat e Controles da Rede -->
     <right>
-        <VBox spacing="10" prefWidth="250" style="-fx-background-color: #f4f4f4; -fx-padding: 15; -fx-border-color: #cccccc; -fx-border-width: 0 0 0 1;">
+        <!-- Painel do chat agora tem fundo branco, bordas arredondadas e sombra -->
+        <VBox spacing="10" prefWidth="300"
+              style="-fx-background-color: #ffffff; -fx-padding: 20; -fx-border-color: #e2e8f0; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 4);">
 
-            <Label text="Comunicação" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+            <Label text="Comunicação" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
 
-            <!-- Caixa de texto do chat (expande para preencher o espaço) -->
-            <TextArea fx:id="chatArea" editable="false" wrapText="true" VBox.vgrow="ALWAYS"/>
+            <TextArea fx:id="chatArea" editable="false" wrapText="true" VBox.vgrow="ALWAYS" style="-fx-font-size: 14px;"/>
 
-            <!-- Input de texto e botão de enviar -->
-            <HBox spacing="5">
-                <TextField fx:id="inputChat" promptText="Digite aqui..." HBox.hgrow="ALWAYS" onAction="#enviarChat"/>
-                <Button text="Enviar" onAction="#enviarChat"/>
+            <HBox spacing="10">
+                <TextField fx:id="inputChat" promptText="Digite sua mensagem..." HBox.hgrow="ALWAYS" onAction="#enviarChat" style="-fx-font-size: 14px; -fx-padding: 8;"/>
+                <Button text="Enviar" onAction="#enviarChat" style="-fx-font-size: 14px; -fx-cursor: hand; -fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;"/>
             </HBox>
 
-            <Separator style="-fx-padding: 10 0;"/>
+            <Separator style="-fx-padding: 15 0;"/>
 
-            <!-- Botões de Ação do Jogo -->
-            <Button text="Passar Turno" onAction="#passarTurno" maxWidth="Infinity" style="-fx-font-weight: bold;"/>
-            <Button text="Desistir da Partida" maxWidth="Infinity" style="-fx-background-color: #d9534f; -fx-text-fill: white; -fx-font-weight: bold;"/>
+            <Button text="Passar Turno" onAction="#passarTurno" maxWidth="Infinity" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 12; -fx-cursor: hand; -fx-background-color: #f39c12; -fx-text-fill: white;"/>
+            <Button text="Desistir da Partida" onAction="#desistirPartida" maxWidth="Infinity" style="-fx-font-size: 16px; -fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-cursor: hand;"/>
 
         </VBox>
     </right>
