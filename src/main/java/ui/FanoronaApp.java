@@ -12,7 +12,6 @@ public class FanoronaApp extends Application {
 
     @Override
     public void start(Stage palcoPrincipal) throws Exception {
-        // 1. Pergunta inicial: Criar ou Entrar?
         javafx.scene.control.Alert alertaFundo = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.CONFIRMATION);
         alertaFundo.setTitle("Fanorona");
         alertaFundo.setHeaderText("Bem-vindo ao Fanorona Multijogador!");
@@ -25,13 +24,12 @@ public class FanoronaApp extends Application {
         java.util.Optional<javafx.scene.control.ButtonType> resultado = alertaFundo.showAndWait();
 
         if (resultado.isEmpty()) {
-            System.exit(0); // Fechou a janela sem escolher
+            System.exit(0);
         }
 
         boolean isServidor = (resultado.get() == btnCriar);
         String ip = "127.0.0.1";
 
-        // 2. Se for cliente, pergunta o IP do amigo
         if (!isServidor) {
             javafx.scene.control.TextInputDialog dialogIp = new javafx.scene.control.TextInputDialog("127.0.0.1");
             dialogIp.setTitle("Conectar à Partida");
@@ -42,11 +40,10 @@ public class FanoronaApp extends Application {
             if (resIp.isPresent()) {
                 ip = resIp.get();
             } else {
-                System.exit(0); // Cancelou a digitação do IP
+                System.exit(0);
             }
         }
 
-        // 3. Carrega o FXML e passa a decisão para o Controlador
         URL caminhoFxml = getClass().getResource("/tela.fxml");
         FXMLLoader loader = new FXMLLoader(caminhoFxml);
         Parent raiz = loader.load();
@@ -54,7 +51,6 @@ public class FanoronaApp extends Application {
         FanoronaController controlador = loader.getController();
         controlador.iniciarConexao(isServidor, ip);
 
-        // 4. Exibe a tela principal
         Scene cena = new Scene(raiz, 1220, 800);
         palcoPrincipal.setTitle(isServidor ? "Fanorona - Servidor (Brancas)" : "Fanorona - Cliente (Pretas)");
         palcoPrincipal.setScene(cena);
@@ -62,19 +58,13 @@ public class FanoronaApp extends Application {
         palcoPrincipal.show();
     }
 
-    /**
-     * O método stop() é disparado automaticamente quando o usuário clica
-     * no "X" para fechar a janela. É vital para matar as Threads do servidor/cliente.
-     */
     @Override
     public void stop() {
         System.out.println("Encerrando a interface gráfica...");
-        // Força o encerramento da JVM, matando qualquer Thread de Socket que ficou pendente
         System.exit(0);
     }
 
     public static void main(String[] args) {
-        // Dispara o ciclo de vida interno do JavaFX, que eventualmente chama o start()
         launch(args);
     }
 }

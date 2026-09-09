@@ -5,7 +5,6 @@ core/Posicao.class
 network/Mensagem.class
 core/Peca.class
 ui/FanoronaController.class
-core/FanoronaCore$1.class
 core/FanoronaCore.class
 network/FanoronaClient.class
 ui/MainLauncher.class

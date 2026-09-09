@@ -17,7 +17,6 @@ public class FanoronaClient implements Runnable {
     private PrintWriter saida;
     private static final Logger logger = Logger.getLogger(FanoronaClient.class.getName());
 
-    // Callback para enviar mensagens recebidas de volta para o Core/UI
     private final Consumer<String> aoReceberMensagem;
 
     public FanoronaClient(String host, int porta, Consumer<String> aoReceberMensagem) {
@@ -29,19 +28,15 @@ public class FanoronaClient implements Runnable {
     @Override
     public void run() {
         try {
-            // 1. Tenta conectar ao IP (host) e porta do servidor
             logger.info("Tentando conectar ao servidor em " + host + ":" + porta + "...");
             socket = new Socket(host, porta);
             logger.info("Conectado com sucesso ao servidor!");
 
-            // 2. Prepara os canais de leitura e escrita
             entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             saida = new PrintWriter(socket.getOutputStream(), true);
 
-            // 3. Loop infinito escutando as mensagens do servidor
             String mensagemRecebida;
             while ((mensagemRecebida = entrada.readLine()) != null) {
-                // Quando recebe algo pela rede, dispara o evento
                 if (aoReceberMensagem != null) {
                     aoReceberMensagem.accept(mensagemRecebida);
                 }
@@ -53,9 +48,6 @@ public class FanoronaClient implements Runnable {
         }
     }
 
-    /**
-     * Método chamado para enviar uma jogada ou chat para o servidor.
-     */
     public void enviarMensagem(String mensagem) {
         if (saida != null) {
             saida.println(mensagem);
